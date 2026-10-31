@@ -7,6 +7,7 @@ import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
 import hu.nye.progtech.rushhour.service.BoardFileReader;
+import hu.nye.progtech.rushhour.service.MoveService;
 import hu.nye.progtech.rushhour.view.BoardView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,28 +24,31 @@ public class Main {
     public static void main(String[] args) {
         BoardView boardView = new BoardView();
         BoardFileReader fileReader = new BoardFileReader();
+        MoveService moveService = new MoveService(); // 1. LÉPÉS: Létrehozzuk a mozgató szolgáltatást
 
-        // 1. KÍSÉRLET: Megpróbáljuk beolvasni a pályát a külső txt fájlból
-        // Itt pontosan azt a nevet adjuk meg, amit a resources mappában létrehoztunk!
+        // Pálya beolvasása a fájlból (vagy default pálya, ha nincs meg a fájl)
         Board board = fileReader.readBoard("palyarenata.txt");
 
-        // 2. LÉPÉS: Ellenőrizzük, hogy sikerült-e a beolvasás
-        if (board != null) {
-            LOGGER.info("A játék sikeresen elindult a beolvasott fájl alapján.");
-        } else {
-            // Ha a fájl nem található vagy hibás (null-t kaptunk), felépítjük a beégetett default pályát
+        if (board == null) {
             LOGGER.warn("A pályafájl nem tölthető be! Átváltás az alapértelmezett (default) pályára...");
-
             List<Vehicle> defaultVehicles = new ArrayList<>();
             defaultVehicles.add(new Vehicle('A', 2, 1, 2, Orientation.HORIZONTAL));
             defaultVehicles.add(new Vehicle('B', 3, 4, 2, Orientation.HORIZONTAL));
             defaultVehicles.add(new Vehicle('X', 0, 0, 3, Orientation.VERTICAL));
-
-            // Létrehozzuk a default táblát (6x6-os méretben)
             board = new Board(6, 6, defaultVehicles, 2, 3);
         }
 
-        // 3. LÉPÉS: A kiválasztott tábla kirajzolása a parancssorra
+        // 2. LÉPÉS: Kirajzoljuk a KIINDULÁSI pályát
+        System.out.println("=== KEDZŐ ÁLLAPOT ===");
+        boardView.printBoard(board);
+
+        // 3. LÉPÉS: Teszünk egy próbalépést!
+        // Toljuk el az 'A' autót JOBBRA 1 mezővel (mivel jobbra tolunk, a steps = 1)
+        LOGGER.info("Próbalépés végrehajtása: 'A' autó jobbra 1 mezővel.");
+        board = moveService.moveVehicle(board, 'A', 1);
+
+        // 4. LÉPÉS: Kirajzoljuk a pályát a LÉPÉS UTÁN is
+        System.out.println("=== LÉPÉS UTÁNI ÁLLAPOT ===");
         boardView.printBoard(board);
     }
 }
