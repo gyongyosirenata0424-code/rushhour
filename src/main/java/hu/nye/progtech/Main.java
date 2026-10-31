@@ -6,36 +6,45 @@ import java.util.List;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
+import hu.nye.progtech.rushhour.service.BoardFileReader;
 import hu.nye.progtech.rushhour.view.BoardView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A játék indításáért felelős főosztály.
  */
 public class Main {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     /**
      * A program belépési pontja.
      */
     public static void main(String[] args) {
-        // 1. LÉPÉS: Gyártunk néhány tesztjárművet a Vehicle osztályunkkal
-        // Paraméterek: ID, kezdőSor, kezdőOszlop, hossz, irány
-        Vehicle humanCar = new Vehicle('A', 2, 1, 2, Orientation.HORIZONTAL); // Humán játékos autója
-        Vehicle aiCar = new Vehicle('B', 3, 4, 2, Orientation.HORIZONTAL);    // Gépi játékos autója
-        Vehicle truckX = new Vehicle('X', 0, 0, 3, Orientation.VERTICAL);     // Egy függőleges teherautó akadály
-
-        // 2. LÉPÉS: Betesszük a járműveket egy listába
-        List<Vehicle> testVehicles = new ArrayList<>();
-        testVehicles.add(humanCar);
-        testVehicles.add(aiCar);
-        testVehicles.add(truckX);
-
-        // 3. LÉPÉS: Létrehozunk egy 6x6-os játéktáblát a listával és a kijáratok soraival
-        // A humán kijárat a 2. sor végén lesz, az AI kijárat a 3. sor elején
-        Board board = new Board(6, 6, testVehicles, 2, 3);
-
-        // 4. LÉPÉS: Meghívjuk a View-t, hogy rajzolja ki ezt a táblát a konzolra
         BoardView boardView = new BoardView();
+        BoardFileReader fileReader = new BoardFileReader();
+
+        // 1. KÍSÉRLET: Megpróbáljuk beolvasni a pályát a külső txt fájlból
+        // Itt pontosan azt a nevet adjuk meg, amit a resources mappában létrehoztunk!
+        Board board = fileReader.readBoard("palyarenata.txt");
+
+        // 2. LÉPÉS: Ellenőrizzük, hogy sikerült-e a beolvasás
+        if (board != null) {
+            LOGGER.info("A játék sikeresen elindult a beolvasott fájl alapján.");
+        } else {
+            // Ha a fájl nem található vagy hibás (null-t kaptunk), felépítjük a beégetett default pályát
+            LOGGER.warn("A pályafájl nem tölthető be! Átváltás az alapértelmezett (default) pályára...");
+
+            List<Vehicle> defaultVehicles = new ArrayList<>();
+            defaultVehicles.add(new Vehicle('A', 2, 1, 2, Orientation.HORIZONTAL));
+            defaultVehicles.add(new Vehicle('B', 3, 4, 2, Orientation.HORIZONTAL));
+            defaultVehicles.add(new Vehicle('X', 0, 0, 3, Orientation.VERTICAL));
+
+            // Létrehozzuk a default táblát (6x6-os méretben)
+            board = new Board(6, 6, defaultVehicles, 2, 3);
+        }
+
+        // 3. LÉPÉS: A kiválasztott tábla kirajzolása a parancssorra
         boardView.printBoard(board);
     }
 }
-
