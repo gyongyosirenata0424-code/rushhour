@@ -3,6 +3,7 @@ package hu.nye.progtech.rushhour;
 import java.util.ArrayList;
 import java.util.List;
 
+import hu.nye.progtech.rushhour.controller.GameController;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
@@ -24,11 +25,15 @@ public class Main {
     public static void main(String[] args) {
         BoardView boardView = new BoardView();
         BoardFileReader fileReader = new BoardFileReader();
-        MoveService moveService = new MoveService(); // 1. LÉPÉS: Létrehozzuk a mozgató szolgáltatást
+        MoveService moveService = new MoveService();
 
-        // Pálya beolvasása a fájlból (vagy default pálya, ha nincs meg a fájl)
+        // 1. LÉPÉS: Létrehozzuk a Vezérlőt, és átadjuk neki a View-t és a MoveService-t
+        GameController gameController = new GameController(boardView, moveService);
+
+        // Pálya beolvasása a külső fájlból
         Board board = fileReader.readBoard("palyarenata.txt");
 
+        // Vészhelyzeti tartalék (fallback), ha a fájl nem található
         if (board == null) {
             LOGGER.warn("A pályafájl nem tölthető be! Átváltás az alapértelmezett (default) pályára...");
             List<Vehicle> defaultVehicles = new ArrayList<>();
@@ -38,17 +43,7 @@ public class Main {
             board = new Board(6, 6, defaultVehicles, 2, 3);
         }
 
-        // 2. LÉPÉS: Kirajzoljuk a KIINDULÁSI pályát
-        System.out.println("=== KEDZŐ ÁLLAPOT ===");
-        boardView.printBoard(board);
-
-        // 3. LÉPÉS: Teszünk egy próbalépést!
-        // Toljuk el az 'A' autót JOBBRA 1 mezővel (mivel jobbra tolunk, a steps = 1)
-        LOGGER.info("Próbalépés végrehajtása: 'A' autó jobbra 1 mezővel.");
-        board = moveService.moveVehicle(board, 'A', 1);
-
-        // 4. LÉPÉS: Kirajzoljuk a pályát a LÉPÉS UTÁN is
-        System.out.println("=== LÉPÉS UTÁNI ÁLLAPOT ===");
-        boardView.printBoard(board);
+        // 2. LÉPÉS: Átadjuk az irányítást a Vezérlőnek, ami elindítja a játékot
+        gameController.runGame(board);
     }
 }
