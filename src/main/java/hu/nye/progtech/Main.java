@@ -9,34 +9,27 @@ import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
 import hu.nye.progtech.rushhour.service.BoardFileReader;
 import hu.nye.progtech.rushhour.service.HighScoreService;
+import hu.nye.progtech.rushhour.service.GameStateService; // ÚJ
 import hu.nye.progtech.rushhour.service.MoveService;
 import hu.nye.progtech.rushhour.view.BoardView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A játék indításáért felelős főosztály.
- */
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
-    /**
-     * A program belépési pontja.
-     */
     public static void main(String[] args) {
         BoardView boardView = new BoardView();
         BoardFileReader fileReader = new BoardFileReader();
         MoveService moveService = new MoveService();
-
-
         HighScoreService highScoreService = new HighScoreService();
-        GameController gameController = new GameController(boardView, moveService, highScoreService);
+        GameStateService gameStateService = new GameStateService(); // ÚJ
 
+        // Átadjuk az összes szükséges service-t a Controllernek
+        GameController gameController = new GameController(boardView, moveService, highScoreService, gameStateService);
 
-        // Pálya beolvasása a külső fájlból
         Board board = fileReader.readBoard("palyarenata.txt");
 
-        // Vészhelyzeti tartalék (fallback), ha a fájl nem található
         if (board == null) {
             LOGGER.warn("A pályafájl nem tölthető be! Átváltás az alapértelmezett (default) pályára...");
             List<Vehicle> defaultVehicles = new ArrayList<>();
@@ -46,7 +39,6 @@ public class Main {
             board = new Board(6, 6, defaultVehicles, 2, 3);
         }
 
-        // 2. LÉPÉS: Átadjuk az irányítást a Vezérlőnek, ami elindítja a játékot
         gameController.runGame(board);
     }
 }
