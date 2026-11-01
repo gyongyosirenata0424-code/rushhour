@@ -3,6 +3,7 @@ package hu.nye.progtech.rushhour.controller;
 import java.util.Scanner;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Vehicle;
+import hu.nye.progtech.rushhour.service.HighScoreService;
 import hu.nye.progtech.rushhour.service.MoveService;
 import hu.nye.progtech.rushhour.view.BoardView;
 import org.slf4j.Logger;
@@ -16,11 +17,15 @@ public class GameController {
 
     private final BoardView boardView;
     private final MoveService moveService;
+    // ÚJ: Bevezetjük a toplista szolgáltatást a Vezérlőbe
+    private final HighScoreService highScoreService;
     private final Scanner scanner;
 
-    public GameController(BoardView boardView, MoveService moveService) {
+    // Frissítjük a konstruktort, hogy a HighScoreService-t is megkapja
+    public GameController(BoardView boardView, MoveService moveService, HighScoreService highScoreService) {
         this.boardView = boardView;
         this.moveService = moveService;
+        this.highScoreService = highScoreService;
         this.scanner = new Scanner(System.in);
     }
 
@@ -30,7 +35,7 @@ public class GameController {
      */
     public void runGame(Board initialBoard) {
         Board board = initialBoard;
-        int moveCount = 0; // ÚJ: Ebben a változóban számoljuk a játékos sikeres lépéseit!
+        int moveCount = 0;
 
         LOGGER.info("A játékmenet elindult a GameController segítségével.");
 
@@ -40,12 +45,9 @@ public class GameController {
 
         // FŐ JÁTÉKCIKLUS (Addig fut, amíg nincs győzelem)
         while (!isGameWon(board)) {
-            // Kirajzoljuk az aktuális táblát
             boardView.printBoard(board);
-            // ÚJ: Kiírjuk a játékosnak, hogy jelenleg hányadik lépésnél jár
             System.out.println("Eddigi lépések száma: " + moveCount);
 
-            // Bekérjük a játékos lépését
             System.out.print("Kérlek, add meg a lépésed: ");
             String input = scanner.nextLine().trim();
 
@@ -58,22 +60,18 @@ public class GameController {
             try {
                 String[] parts = input.split(" ");
                 if (parts.length != 2) {
-                    System.out.println("Hibás formátum! Kérlek, két dolgot adj meg szóközzel elválaştva.");
+                    System.out.println("Hibás formátum! Kérlek, két dolgot adj meg szóközzel elválasztva.");
                     continue;
                 }
 
                 char vehicleId = parts[0].toUpperCase().charAt(0);
                 int steps = Integer.parseInt(parts[1]);
 
-                // Eltároljuk a mozgás előtti táblát, hogy ellenőrizni tudjuk, változott-e valami
                 Board previousBoard = board;
-
-                // Megkíséreljük a mozgást
                 board = moveService.moveVehicle(board, vehicleId, steps);
 
-                // ÚJ ELLENŐRZÉS: Ha a visszakapott tábla NEM egyezik meg a régivel, a lépés SIKERES volt!
                 if (!board.equals(previousBoard)) {
-                    moveCount++; // Megnöveljük a lépésszámlálót eggyel
+                    moveCount++;
                 }
 
             } catch (Exception e) {
@@ -88,11 +86,21 @@ public class GameController {
         System.out.println("GRATULÁLOK! Sikeresen kijuttattad a céljárművet, megnyerted a játékot!");
         System.out.println("A játékot összesen " + moveCount + " sikeres lépésből oldottad meg.");
 
-        // ÚJ: Bekérjük a játékos nevét a toplistához
+        // Bekérjük a játékos nevét a toplistához
         System.out.print("Kérlek, add meg a neved a toplistához: ");
         String playerName = scanner.nextLine().trim();
 
-        System.out.println("Köszönjük, " + playerName + "! Az eredményed rögzítésre készen áll.");
+        // Ha a játékos nem adott meg nevet, kap egy alapértelmezett nevet
+        if (playerName.isEmpty()) {
+            playerName = "Névtelen Játékos";
+        }
+
+        // ÚJ: Ténylegesen elmentjük az eredményt a fájlba
+        highScoreService.saveScore(playerName, moveCount);
+        System.out.println("Köszönjük, " + playerName + "! Az eredményed elmentve.");
+
+        // ÚJ: Azonnal kiíratjuk a friss TOP 10 ranglistát a képernyőre!
+        highScoreService.printTopTen();
     }
 
     private boolean isGameWon(Board board) {

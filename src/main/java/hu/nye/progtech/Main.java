@@ -8,6 +8,7 @@ import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
 import hu.nye.progtech.rushhour.service.BoardFileReader;
+import hu.nye.progtech.rushhour.service.HighScoreService;
 import hu.nye.progtech.rushhour.service.MoveService;
 import hu.nye.progtech.rushhour.view.BoardView;
 import org.slf4j.Logger;
@@ -27,8 +28,10 @@ public class Main {
         BoardFileReader fileReader = new BoardFileReader();
         MoveService moveService = new MoveService();
 
-        // 1. LÉPÉS: Létrehozzuk a Vezérlőt, és átadjuk neki a View-t és a MoveService-t
-        GameController gameController = new GameController(boardView, moveService);
+
+        HighScoreService highScoreService = new HighScoreService();
+        GameController gameController = new GameController(boardView, moveService, highScoreService);
+
 
         // Pálya beolvasása a külső fájlból
         Board board = fileReader.readBoard("palyarenata.txt");
