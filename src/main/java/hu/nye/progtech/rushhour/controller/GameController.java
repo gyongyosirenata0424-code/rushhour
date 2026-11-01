@@ -16,13 +16,12 @@ public class GameController {
 
     private final BoardView boardView;
     private final MoveService moveService;
-    // A Scanner a Java gyári eszköze, amivel a billentyűzetről tudunk szöveget beolvasni
     private final Scanner scanner;
 
     public GameController(BoardView boardView, MoveService moveService) {
         this.boardView = boardView;
         this.moveService = moveService;
-        this.scanner = new Scanner(System.in); // System.in jelenti a szabványos bemenetet (billentyűzet)
+        this.scanner = new Scanner(System.in);
     }
 
     /**
@@ -31,6 +30,8 @@ public class GameController {
      */
     public void runGame(Board initialBoard) {
         Board board = initialBoard;
+        int moveCount = 0; // ÚJ: Ebben a változóban számoljuk a játékos sikeres lépéseit!
+
         LOGGER.info("A játékmenet elindult a GameController segítségével.");
 
         System.out.println("Üdvözöllek a Rush Hour játékban!");
@@ -39,58 +40,65 @@ public class GameController {
 
         // FŐ JÁTÉKCIKLUS (Addig fut, amíg nincs győzelem)
         while (!isGameWon(board)) {
-            // 1. Kirajzoljuk az aktuális táblát
+            // Kirajzoljuk az aktuális táblát
             boardView.printBoard(board);
+            // ÚJ: Kiírjuk a játékosnak, hogy jelenleg hányadik lépésnél jár
+            System.out.println("Eddigi lépések száma: " + moveCount);
 
-            // 2. Bekérjük a játékos lépését
+            // Bekérjük a játékos lépését
             System.out.print("Kérlek, add meg a lépésed: ");
             String input = scanner.nextLine().trim();
 
-            // Ha a játékos ki akar lépni
             if ("exit".equalsIgnoreCase(input)) {
                 LOGGER.info("A játékos kezdeményezte a kilépést.");
                 System.out.println("Köszönöm a játékot! Viszlát!");
                 return;
             }
 
-            // 3. Feldolgozzuk a beírt parancsot
             try {
                 String[] parts = input.split(" ");
                 if (parts.length != 2) {
-                    System.out.println("Hibás formátum! Kérlek, két dolgot adj meg szóközzel elválasztva.");
+                    System.out.println("Hibás formátum! Kérlek, két dolgot adj meg szóközzel elválaştva.");
                     continue;
                 }
 
                 char vehicleId = parts[0].toUpperCase().charAt(0);
                 int steps = Integer.parseInt(parts[1]);
 
-                // 4. Átadjuk a lépést a mozgató szolgáltatásnak
+                // Eltároljuk a mozgás előtti táblát, hogy ellenőrizni tudjuk, változott-e valami
+                Board previousBoard = board;
+
+                // Megkíséreljük a mozgást
                 board = moveService.moveVehicle(board, vehicleId, steps);
+
+                // ÚJ ELLENŐRZÉS: Ha a visszakapott tábla NEM egyezik meg a régivel, a lépés SIKERES volt!
+                if (!board.equals(previousBoard)) {
+                    moveCount++; // Megnöveljük a lépésszámlálót eggyel
+                }
 
             } catch (Exception e) {
                 System.out.println("Érvénytelen parancs! Győződj meg róla, hogy a második paraméter egy szám.");
             }
         }
 
-        // Ha a ciklus véget ért, az azt jelenti, hogy az isGameWon igaz lett, vagyis GYŐZELEM!
-        boardView.printBoard(board); // Kirajzoljuk az utolsó, győztes állapotot
-        LOGGER.info("A játék sikeresen véget ért, győzelemmel!");
+        // --- GYŐZELEM UTÁNI RÉSZ ---
+        boardView.printBoard(board);
+        LOGGER.info("A játék sikeresen véget ért, győzelemmel! Összes lépés: {}", moveCount);
+
         System.out.println("GRATULÁLOK! Sikeresen kijuttattad a céljárművet, megnyerted a játékot!");
+        System.out.println("A játékot összesen " + moveCount + " sikeres lépésből oldottad meg.");
+
+        // ÚJ: Bekérjük a játékos nevét a toplistához
+        System.out.print("Kérlek, add meg a neved a toplistához: ");
+        String playerName = scanner.nextLine().trim();
+
+        System.out.println("Köszönjük, " + playerName + "! Az eredményed rögzítésre készen áll.");
     }
 
-    /**
-     * Segédfüggvény, ami ellenőrzi, hogy teljesült-e a győzelmi feltétel.
-     * A szabály szerint akkor van győzelem, ha a humán játékos ('A' autó) orra elérte a tábla jobb szélét.
-     */
     private boolean isGameWon(Board board) {
         for (Vehicle v : board.getVehicles()) {
-            // Csak a humán játékos 'A' jelű autóját vizsgáljuk
             if (v.getId() == 'A') {
-                // Kiszámoljuk az autó jobb szélének (orrának) oszlopindexét
-                // Kezdő oszlop + hosszúság (pl. ha az 1. oszlopban kezdődik és 2 hosszú, akkor az 1+2 = 3. oszlopig tart)
                 int carFrontCol = v.getStartCol() + v.getLength();
-
-                // Ha ez az érték eléri a tábla teljes oszlopszámát a kijárati sorban, akkor az autó kiment a pályáról!
                 if (v.getStartRow() == board.getHumanExitRow() && carFrontCol >= board.getCols()) {
                     return true;
                 }
@@ -99,4 +107,3 @@ public class GameController {
         return false;
     }
 }
-
