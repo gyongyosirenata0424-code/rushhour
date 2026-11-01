@@ -15,51 +15,45 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A játék aktuális állásának mentéséért és betöltéséért felelős szolgáltatás.
+ * A játék aktuális pillanatképének perzisztens mentéséért és visszatöltéséért felelős osztály.
  */
 public class GameStateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameStateService.class);
-
-    // A fájl neve, ahová az aktuális játékállást mentjük
     private static final String SAVE_FILE = "mentes.txt";
 
     /**
-     * Elmenti az aktuális játéktáblát és a lépésszámot egy fájlba.
+     * Szöveges állományba exportálja az aktuális táblamodellt és az eddigi lépések számát.
      */
     public void saveGame(Board board, int moveCount) {
-        LOGGER.info("Játékállás mentése megkezdődött. Lépésszám: {}", moveCount);
+        LOGGER.info("Játékállás mentési folyamat elindítva. Lépésszám: {}", moveCount);
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(SAVE_FILE))) {
-            // 1. sor: Pálya mérete és a kijáratok sora, valamint az aktuális lépésszám
             writer.write(board.getRows() + " " + board.getCols() + " " + board.getHumanExitRow() + " " + board.getExitRow() + " " + moveCount);
             writer.newLine();
 
-            // A többi sor: A járművek adatai
             for (Vehicle v : board.getVehicles()) {
                 writer.write(v.getId() + " " + v.getStartRow() + " " + v.getStartCol() + " " + v.getLength() + " " + v.getOrientation());
                 writer.newLine();
             }
-            LOGGER.info("Játékállás sikeresen elmentve a(z) {} fájlba.", SAVE_FILE);
+            LOGGER.info("A játékállás sikeresen archiválva a(z) {} fájlba.", SAVE_FILE);
         } catch (Exception e) {
-            LOGGER.error("Hiba történt a játék mentése közben!", e);
+            LOGGER.error("Hiba lépett fel a játék mentése során!", e);
         }
     }
 
     /**
-     * Beolvassa az elmentett játékállást, ha létezik a fájl.
-     * Mivel a tábla mellett a lépésszámot is vissza kell adnunk, egy kis segédtömböt vagy objektumot használhatunk,
-     * de a legegyszerűbb, ha egy egyedi eredmény-objektumot adunk vissza.
+     * Visszatölti a perzisztált játékállást, amennyiben az archívum létezik.
+     * @return A betöltött táblát és lépésszámot tartalmazó LoadedState burkolóobjektum, vagy null.
      */
     public LoadedState loadGame() {
         File file = new File(SAVE_FILE);
         if (!file.exists()) {
-            LOGGER.info("Nincs elmentett játékállás.");
+            LOGGER.info("Nem található korábbi mentett játékállás.");
             return null;
         }
 
-        LOGGER.info("Mentett játékállás betöltése...");
+        LOGGER.info("Mentett játékállás importálása folyamatban...");
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            // 1. sor beolvasása: rows cols humanExit aiExit moveCount
             String firstLine = reader.readLine();
             if (firstLine == null) return null;
             String[] parts = firstLine.split(" ");
@@ -70,7 +64,6 @@ public class GameStateService {
             int aiExit = Integer.parseInt(parts[3]);
             int moveCount = Integer.parseInt(parts[4]);
 
-            // Járművek beolvasása
             List<Vehicle> vehicles = new ArrayList<>();
             String line;
             while ((line = reader.readLine()) != null) {
@@ -89,13 +82,13 @@ public class GameStateService {
             return new LoadedState(board, moveCount);
 
         } catch (Exception e) {
-            LOGGER.error("Hiba történt a játék betöltése közben!", e);
+            LOGGER.error("Hiba lépett fel a mentés visszaállítása során!", e);
             return null;
         }
     }
 
     /**
-     * Segédosztály, ami összefogja a betöltött táblát és a hozzá tartozó lépésszámot.
+     * A betöltött entitásokat és metaadatokat összefogó statikus belső adatstruktúra.
      */
     public static class LoadedState {
         private final Board board;
@@ -110,4 +103,3 @@ public class GameStateService {
         public int getMoveCount() { return moveCount; }
     }
 }
-

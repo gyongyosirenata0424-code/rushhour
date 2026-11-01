@@ -5,21 +5,23 @@ import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Vehicle;
 import hu.nye.progtech.rushhour.service.HighScoreService;
 import hu.nye.progtech.rushhour.service.MoveService;
-import hu.nye.progtech.rushhour.service.GameStateService; // ÚJ IMPORT
+import hu.nye.progtech.rushhour.service.GameStateService;
 import hu.nye.progtech.rushhour.view.BoardView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A felhasználói interakciók kezeléséért és a játékmenet vezérléséért felelős osztály.
+ */
 public class GameController {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameController.class);
 
     private final BoardView boardView;
     private final MoveService moveService;
     private final HighScoreService highScoreService;
-    private final GameStateService gameStateService; // ÚJ BEJEGYZÉS
+    private final GameStateService gameStateService;
     private final Scanner scanner;
 
-    // Frissített konstruktor
     public GameController(BoardView boardView, MoveService moveService, HighScoreService highScoreService, GameStateService gameStateService) {
         this.boardView = boardView;
         this.moveService = moveService;
@@ -28,50 +30,52 @@ public class GameController {
         this.scanner = new Scanner(System.in);
     }
 
+    /**
+     * Elindítja és menedzseli a játék fő futási ciklusát.
+     * @param initialBoard A játék indításához használt kezdeti táblaállapot.
+     */
     public void runGame(Board initialBoard) {
         Board board = initialBoard;
         int moveCount = 0;
 
-        // ÚJ: Indításkor ellenőrizzük, van-e mentett állás
         GameStateService.LoadedState savedState = gameStateService.loadGame();
         if (savedState != null) {
-            System.out.print("Találtam egy elmentett játékállást! Szeretnéd betölteni? (igen/nem): ");
+            System.out.print("Mentett játékállás észlelve. Szeretné betölteni? (igen/nem): ");
             String answer = scanner.nextLine().trim();
             if ("igen".equalsIgnoreCase(answer)) {
                 board = savedState.getBoard();
                 moveCount = savedState.getMoveCount();
-                LOGGER.info("Mentett játékállás sikeresen betöltve. Lépésszám visszaállítva: {}", moveCount);
+                LOGGER.info("Mentett játékállás sikeresen visszaállítva. Aktuális lépésszám: {}", moveCount);
             }
         }
 
         System.out.println("Üdvözöllek a Rush Hour játékban!");
-        System.out.println("Parancs formátuma: [AutóBetűjele] [Lépésszám] (Pl: A 1 vagy X -2)");
-        System.out.println("Mentéshez írd be: save | Kilépéshez: exit");
+        System.out.println("Parancs formátuma: [JárműBetűjele] [Lépésszám] (Pl: A 1 vagy X -2)");
+        System.out.println("Rendszerparancsok: save (mentés) | exit (kilépés)");
 
         while (!isGameWon(board)) {
             boardView.printBoard(board);
-            System.out.println("Eddigi lépések száma: " + moveCount);
+            System.out.println("Megtett szabályos lépések száma: " + moveCount);
+            System.out.print("Adja meg a következő lépést: ");
 
-            System.out.print("Kérlek, add meg a lépésed: ");
             String input = scanner.nextLine().trim();
 
             if ("exit".equalsIgnoreCase(input)) {
-                LOGGER.info("A játékos kezdeményezte a kilépést.");
+                LOGGER.info("Felhasználói kezdeményezésű kilépés.");
                 System.out.println("Köszönöm a játékot! Viszlát!");
                 return;
             }
 
-            // ÚJ PARANCS: Mentés kezelése
             if ("save".equalsIgnoreCase(input)) {
                 gameStateService.saveGame(board, moveCount);
-                System.out.println("A játékállás sikeresen elmentve!");
+                System.out.println("A játékállás sikeresen rögzítésre került.");
                 continue;
             }
 
             try {
                 String[] parts = input.split(" ");
                 if (parts.length != 2) {
-                    System.out.println("Hibás formátum! Kérlek, két dolgot adj meg szóközzel elválasztva.");
+                    System.out.println("Érvénytelen szintaktika! Két paraméter megadása kötelező szóköz elválasztással.");
                     continue;
                 }
 
@@ -86,22 +90,21 @@ public class GameController {
                 }
 
             } catch (Exception e) {
-                System.out.println("Érvénytelen parancs! Győződj meg róla, hogy a második paraméter egy szám.");
+                System.out.println("Érvénytelen parancsformátum! A második paraméternek egész számnak kell lennie.");
             }
         }
 
-        // Győzelem kezelése
         boardView.printBoard(board);
-        LOGGER.info("A játék sikeresen véget ért, győzelemmel! Összes lépés: {}", moveCount);
+        LOGGER.info("A játékmenet sikeresen lezárult. Összesített lépésszám: {}", moveCount);
 
-        System.out.println("GRATULÁLOK! Sikeresen kijuttattad a céljárművet, megnyerted a játékot!");
-        System.out.println("A játékot összesen " + moveCount + " sikeres lépésből oldottad meg.");
+        System.out.println("GRATULÁLOK! A céljármű sikeresen elérte a kijáratot. Megnyerted a játékot!");
+        System.out.println("A megoldáshoz szükséges szabályos lépések száma: " + moveCount);
 
-        System.out.print("Kérlek, add meg a neved a toplistához: ");
+        System.out.print("Kérlek, add meg a neved a ranglistához: ");
         String playerName = scanner.nextLine().trim();
 
         if (playerName.isEmpty()) {
-            playerName = "Névtelen Játékos";
+            playerName = "Anonymous Player";
         }
 
         highScoreService.saveScore(playerName, moveCount);

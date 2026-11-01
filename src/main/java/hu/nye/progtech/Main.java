@@ -9,12 +9,15 @@ import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
 import hu.nye.progtech.rushhour.service.BoardFileReader;
 import hu.nye.progtech.rushhour.service.HighScoreService;
-import hu.nye.progtech.rushhour.service.GameStateService; // ÚJ
+import hu.nye.progtech.rushhour.service.GameStateService;
 import hu.nye.progtech.rushhour.service.MoveService;
 import hu.nye.progtech.rushhour.view.BoardView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A Rush Hour játék indításáért felelős alkalmazás-vezérlő főosztály.
+ */
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
@@ -23,15 +26,14 @@ public class Main {
         BoardFileReader fileReader = new BoardFileReader();
         MoveService moveService = new MoveService();
         HighScoreService highScoreService = new HighScoreService();
-        GameStateService gameStateService = new GameStateService(); // ÚJ
+        GameStateService gameStateService = new GameStateService();
 
-        // Átadjuk az összes szükséges service-t a Controllernek
         GameController gameController = new GameController(boardView, moveService, highScoreService, gameStateService);
 
         Board board = fileReader.readBoard("palyarenata.txt");
 
         if (board == null) {
-            LOGGER.warn("A pályafájl nem tölthető be! Átváltás az alapértelmezett (default) pályára...");
+            LOGGER.warn("A konfigurációs pályafájl nem érhető el. Alapértelmezett modell inicializálása.");
             List<Vehicle> defaultVehicles = new ArrayList<>();
             defaultVehicles.add(new Vehicle('A', 2, 1, 2, Orientation.HORIZONTAL));
             defaultVehicles.add(new Vehicle('B', 3, 4, 2, Orientation.HORIZONTAL));
