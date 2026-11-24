@@ -8,17 +8,14 @@ import java.util.Objects;
  * Megvalósítja a Comparable interfészt, hogy a Java automatikusan sorba tudja rendezni lépésszám szerint.
  */
 public final class HighScoreModel implements Comparable<HighScoreModel> {
-    // 1. TULAJDONSÁGOK (Módosíthatatlan private final változók)
     private final String playerName;
     private final int moveCount;
 
-    // 2. KONSTRUKTOR
     public HighScoreModel(String playerName, int moveCount) {
         this.playerName = playerName;
         this.moveCount = moveCount;
     }
 
-    // 3. GETTEREK
     public String getPlayerName() {
         return playerName;
     }
@@ -27,14 +24,11 @@ public final class HighScoreModel implements Comparable<HighScoreModel> {
         return moveCount;
     }
 
-    // 4. SORBA RENDEZÉSI LOGIKA (A Comparable interfész miatt kötelező)
     @Override
     public int compareTo(HighScoreModel other) {
-        // Növekvő sorrendbe rendezünk: aki kevesebb lépésből oldotta meg a játékot, az nyer!
         return Integer.compare(this.moveCount, other.moveCount);
     }
 
-    // 5. KÖTELEZŐ METÓDUSOK AZ ÖSSZEHASONLÍTÁSHOZ ÉS KIÍRATÁSHOZ
     @Override
     public boolean equals(Object o) {
         if (this == o) {
