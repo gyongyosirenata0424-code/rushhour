@@ -5,6 +5,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,91 +16,85 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A játék aktuális pillanatképének perzisztens mentéséért és visszatöltéséért felelős osztály.
+ * A játékállás fájlba történő mentéséért és visszatöltéséért felelős szolgáltatás.
  */
 public class GameStateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameStateService.class);
-    private static final String SAVE_FILE = "mentes.txt";
+    private final String saveFilePath;
 
-    /**
-     * Szöveges állományba exportálja az aktuális táblamodellt és az eddigi lépések számát.
-     */
-    public void saveGame(Board board, int moveCount) {
-        LOGGER.info("Játékállás mentési folyamat elindítva. Lépésszám: {}", moveCount);
+    public GameStateService() {
+        this("mentes.txt");
+    }
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(SAVE_FILE))) {
-            writer.write(board.getRows() + " " + board.getCols() + " " + board.getHumanExitRow() + " " + board.getExitRow() + " " + moveCount);
-            writer.newLine();
-
-            for (Vehicle v : board.getVehicles()) {
-                writer.write(v.getId() + " " + v.getStartRow() + " " + v.getStartCol() + " " + v.getLength() + " " + v.getOrientation());
-                writer.newLine();
-            }
-            LOGGER.info("A játékállás sikeresen archiválva a(z) {} fájlba.", SAVE_FILE);
-        } catch (Exception e) {
-            LOGGER.error("Hiba lépett fel a játék mentése során!", e);
-        }
+    public GameStateService(String saveFilePath) {
+        this.saveFilePath = saveFilePath;
     }
 
     /**
-     * Visszatölti a perzisztált játékállást, amennyiben az archívum létezik.
-     * @return A betöltött táblát és lépésszámot tartalmazó LoadedState burkolóobjektum, vagy null.
+     * A betöltött játékállást tároló megváltoztathatatlan Java record (equals/hashCode/toString beépítve).
      */
+    public record LoadedState(Board board, int moveCount) {
+    }
+
+    public void saveGame(Board board, int moveCount) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFilePath))) {
+            writer.write(moveCount + "\n");
+            writer.write(board.getRows() + " " + board.getCols() + " "
+                    + board.getHumanExitRow() + " " + board.getAiExitRow() + "\n");
+            for (Vehicle v : board.getVehicles()) {
+                writer.write(v.getId() + " " + v.getStartRow() + " " + v.getStartCol() + " "
+                        + v.getLength() + " " + v.getOrientation() + "\n");
+            }
+            LOGGER.info("Játékállás sikeresen mentve: {}", saveFilePath);
+        } catch (IOException e) {
+            LOGGER.error("Hiba a játékállás mentésekor: {}", e.getMessage());
+        }
+    }
+
     public LoadedState loadGame() {
-        File file = new File(SAVE_FILE);
+        File file = new File(saveFilePath);
         if (!file.exists()) {
-            LOGGER.info("Nem található korábbi mentett játékállás.");
             return null;
         }
 
-        LOGGER.info("Mentett játékállás importálása folyamatban...");
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String firstLine = reader.readLine();
-            if (firstLine == null) return null;
-            String[] parts = firstLine.split(" ");
+            String moveLine = reader.readLine();
+            if (moveLine == null) {
+                return null;
+            }
+            int moveCount = Integer.parseInt(moveLine.trim());
 
-            int rows = Integer.parseInt(parts[0]);
-            int cols = Integer.parseInt(parts[1]);
-            int humanExit = Integer.parseInt(parts[2]);
-            int aiExit = Integer.parseInt(parts[3]);
-            int moveCount = Integer.parseInt(parts[4]);
+            String boardLine = reader.readLine();
+            if (boardLine == null) {
+                return null;
+            }
+            String[] dims = boardLine.trim().split("\\s+");
+            int rows = Integer.parseInt(dims[0]);
+            int cols = Integer.parseInt(dims[1]);
+            int humanExitRow = Integer.parseInt(dims[2]);
+            int aiExitRow = Integer.parseInt(dims[3]);
 
             List<Vehicle> vehicles = new ArrayList<>();
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
-                String[] vParts = line.split(" ");
-                char id = vParts[0].charAt(0);
-                int startRow = Integer.parseInt(vParts[1]);
-                int startCol = Integer.parseInt(vParts[2]);
-                int length = Integer.parseInt(vParts[3]);
-                Orientation orientation = Orientation.valueOf(vParts[4]);
-
-                vehicles.add(new Vehicle(id, startRow, startCol, length, orientation));
+                if (line.isBlank()) {
+                    continue;
+                }
+                String[] parts = line.trim().split("\\s+");
+                char id = parts[0].charAt(0);
+                int r = Integer.parseInt(parts[1]);
+                int c = Integer.parseInt(parts[2]);
+                int len = Integer.parseInt(parts[3]);
+                Orientation orientation = Orientation.valueOf(parts[4]);
+                vehicles.add(new Vehicle(id, r, c, len, orientation));
             }
 
-            Board board = new Board(rows, cols, vehicles, humanExit, aiExit);
-            return new LoadedState(board, moveCount);
-
+            Board loadedBoard = new Board(rows, cols, vehicles, humanExitRow, aiExitRow);
+            LOGGER.info("Mentett játékállás betöltve ({} lépés).", moveCount);
+            return new LoadedState(loadedBoard, moveCount);
         } catch (Exception e) {
-            LOGGER.error("Hiba lépett fel a mentés visszaállítása során!", e);
+            LOGGER.error("Hiba a mentett játékállás betöltésekor: {}", e.getMessage());
             return null;
         }
-    }
-
-    /**
-     * A betöltött entitásokat és metaadatokat összefogó statikus belső adatstruktúra.
-     */
-    public static class LoadedState {
-        private final Board board;
-        private final int moveCount;
-
-        public LoadedState(Board board, int moveCount) {
-            this.board = board;
-            this.moveCount = moveCount;
-        }
-
-        public Board getBoard() { return board; }
-        public int getMoveCount() { return moveCount; }
     }
 }

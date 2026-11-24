@@ -1,82 +1,99 @@
 package hu.nye.progtech.rushhour.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import java.util.ArrayList;
 import java.util.List;
 
+import hu.nye.progtech.rushhour.exception.InvalidMoveException;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * A MoveService osztály működését ellenőrző JUnit 5 tesztosztály.
- */
-public class MoveServiceTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-    private MoveService underTest;
-    private Board testBoard;
+class MoveServiceTest {
 
-    /**
-     * Ez a metódus minden egyes teszteset futtatása előtt automatikusan lefut.
-     * Alaphelyzetbe állítja a MoveService-t és a teszttáblát.
-     */
+    private MoveService moveService;
+
     @BeforeEach
-    public void setUp() {
-        underTest = new MoveService();
-
-        // Gyártunk egy tiszta tesztpályát: egy vízszintes 'A' autót és egy függőleges 'X' akadályt
-        List<Vehicle> vehicles = new ArrayList<>();
-        vehicles.add(new Vehicle('A', 2, 1, 2, Orientation.HORIZONTAL)); // (2,1) és (2,2) helyen áll
-        vehicles.add(new Vehicle('X', 0, 0, 3, Orientation.VERTICAL));   // (0,0), (1,0), (2,0) helyen áll
-
-        testBoard = new Board(6, 6, vehicles, 2, 3);
+    void setUp() {
+        moveService = new MoveService();
     }
 
-    /**
-     * 1. TESZTESET: Ellenőrizzük, hogy a szabályos lépés sikeresen végbemegy-e.
-     */
     @Test
-    public void testMoveVehicleShouldMoveWhenStepIsRegular() {
-        // GIVEN - Adott az 'A' autó a (2,1) pozíción, és el akarjuk tolni jobbra 1 mezővel
-        char vehicleId = 'A';
-        int steps = 1;
+    void testMoveVehicleShouldSlideHorizontalCarWhenPathIsClear() throws InvalidMoveException {
+        // Given
+        Vehicle carA = new Vehicle('A', 2, 0, 2, Orientation.HORIZONTAL);
+        Board board = new Board(6, 6, List.of(carA), 2, 3);
 
-        // WHEN - Végrehajtjuk a mozgást
-        Board result = underTest.moveVehicle(testBoard, vehicleId, steps);
+        // When
+        Board result = moveService.moveVehicle(board, 'A', 2);
 
-        // THEN - Ellenőrizzük az eredményt (Assertion-ökkel)
-        assertNotNull(result);
-
-        // Megkeressük az elmozdított autót az új táblán
-        Vehicle movedCar = result.getVehicles().stream()
-                .filter(v -> v.getId() == 'A')
-                .findFirst()
-                .orElse(null);
-
-        assertNotNull(movedCar);
-        // A sorának változatlannak kell lennie (2)
-        assertEquals(2, movedCar.getStartRow());
-        // Az oszlopának 1-ről 2-re kellett változnia (mivel 1 + 1 = 2)
-        assertEquals(2, movedCar.getStartCol());
+        // Then
+        assertEquals(2, result.getVehicles().get(0).getStartCol());
     }
 
-    /**
-     * 2. TESZTESET: Ellenőrizzük, hogy ha egy jármű ütközne, a rendszer megakadályozza-e a mozgást.
-     */
     @Test
-    public void testMoveVehicleShouldNotMoveWhenCollisionOccurs() {
-        // GIVEN - Az 'A' autót balra akarjuk tolni 1 mezővel (-1), de ott áll az 'X' teherautó
-        char vehicleId = 'A';
-        int steps = -1;
+    void testMoveVehicleShouldRejectJumpingOverBlockingVehicle() {
+        // Given
+        Vehicle carA = new Vehicle('A', 2, 0, 2, Orientation.HORIZONTAL);
+        Vehicle blockerX = new Vehicle('X', 1, 2, 3, Orientation.VERTICAL);
+        Board board = new Board(6, 6, List.of(carA, blockerX), 2, 3);
 
-        // WHEN - Megpróbáljuk elmozdítani
-        Board result = underTest.moveVehicle(testBoard, vehicleId, steps);
+        // When & Then
+        assertThrows(InvalidMoveException.class, () -> moveService.moveVehicle(board, 'A', 3));
+    }
 
-        // THEN - Mivel szabálytalan a lépés, a visszakapott táblának meg kell egyeznie a régi táblával
-        assertEquals(testBoard, result);
+    @Test
+    void testMoveVehicleShouldAllowTargetCarToSlideOutThroughOwnExit() throws InvalidMoveException {
+        // Given
+        Vehicle carA = new Vehicle('A', 2, 4, 2, Orientation.HORIZONTAL);
+        Board board = new Board(6, 6, List.of(carA), 2, 3);
+
+        // When
+        Board result = moveService.moveVehicle(board, 'A', 1);
+
+        // Then
+        assertTrue(moveService.hasVehicleExited(result, 'A'));
+    }
+
+    @Test
+    void testMoveVehicleShouldRejectSlidingOutOnWrongRow() {
+        // Given
+        Vehicle carA = new Vehicle('A', 1, 4, 2, Orientation.HORIZONTAL);
+        Board board = new Board(6, 6, List.of(carA), 2, 3);
+
+        // When & Then
+        assertThrows(InvalidMoveException.class, () -> moveService.moveVehicle(board, 'A', 1));
+    }
+
+    @Test
+    void testMoveVehicleShouldRejectZeroStepsAndUnknownVehicle() {
+        // Given
+        Vehicle carA = new Vehicle('A', 2, 0, 2, Orientation.HORIZONTAL);
+        Board board = new Board(6, 6, List.of(carA), 2, 3);
+
+        // When & Then
+        assertThrows(InvalidMoveException.class, () -> moveService.moveVehicle(board, 'A', 0));
+        assertThrows(InvalidMoveException.class, () -> moveService.moveVehicle(board, 'Q', 1));
+    }
+
+    @Test
+    void testGetAvailableMovesShouldReturnOnlyValidDirections() {
+        // Given
+        Vehicle carA = new Vehicle('A', 2, 0, 2, Orientation.HORIZONTAL);
+        Vehicle carV = new Vehicle('V', 0, 5, 2, Orientation.VERTICAL);
+        Board board = new Board(6, 6, List.of(carA, carV), 2, 3);
+
+        // When
+        List<String> moves = moveService.getAvailableMoves(board);
+
+        // Then
+        assertTrue(moves.contains("A (jobbra (+1))"));
+        assertTrue(moves.contains("V (lefelé (+1))"));
+        assertFalse(moves.contains("A (balra (-1))"));
     }
 }

@@ -19,8 +19,13 @@ public final class HighScoreModel implements Comparable<HighScoreModel> {
     }
 
     // 3. GETTEREK
-    public String getPlayerName() { return playerName; }
-    public int getMoveCount() { return moveCount; }
+    public String getPlayerName() {
+        return playerName;
+    }
+
+    public int getMoveCount() {
+        return moveCount;
+    }
 
     // 4. SORBA RENDEZÉSI LOGIKA (A Comparable interfész miatt kötelező)
     @Override
@@ -32,8 +37,12 @@ public final class HighScoreModel implements Comparable<HighScoreModel> {
     // 5. KÖTELEZŐ METÓDUSOK AZ ÖSSZEHASONLÍTÁSHOZ ÉS KIÍRATÁSHOZ
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         HighScoreModel that = (HighScoreModel) o;
         return moveCount == that.moveCount && Objects.equals(playerName, that.playerName);
     }

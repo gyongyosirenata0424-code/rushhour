@@ -2,129 +2,175 @@ package hu.nye.progtech.rushhour.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import hu.nye.progtech.rushhour.exception.InvalidMoveException;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * A járművek mozgásáért és a lépési szabályok ellenőrzéséért felelős osztály.
+ * A járművek szabályos mozgatásáért, az ütközés- és átugrás-ellenőrzésért felelős szolgáltatás.
  */
 public class MoveService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MoveService.class);
 
     /**
-     * Megkísérel elmozdítani egy járművet a táblán.
-     * Mivel a Board és a Vehicle osztályaink Immutable-ök, ez a metódus egy ÚJ Board objektumot ad vissza a friss pozíciókkal!
-     *
-     * @param board A jelenlegi játéktábla.
-     * @param vehicleId A mozgatni kívánt jármű betűje (pl. 'A').
-     * @param steps Hány mezőt lépjen (pozitív szám = jobbra/le, negatív szám = balra/fel).
-     * @return Az új, frissített Board objektum, vagy a RÉGI board, ha a lépés szabálytalan volt.
+     * Funkcionális programozással (Stream API) kigyűjti a táblán végrehajtható összes érvényes 1 egységnyi lépést.
      */
-    public Board moveVehicle(Board board, char vehicleId, int steps) {
-        // 1. Megkeressük az autót a listában a betűjele alapján
-        Vehicle targetVehicle = null;
-        for (Vehicle v : board.getVehicles()) {
-            if (v.getId() == vehicleId) {
-                targetVehicle = v;
+    public List<String> getAvailableMoves(Board board) {
+        return board.getVehicles().stream()
+                .flatMap(vehicle -> IntStream.of(-1, 1)
+                        .filter(step -> isMoveValid(board, vehicle.getId(), step))
+                        .mapToObj(step -> formatMoveDescription(vehicle, step)))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Visszaadja, hogy az adott lépés szabályosan végrehajtható-e.
+     */
+    public boolean isMoveValid(Board board, char vehicleId, int steps) {
+        try {
+            moveVehicle(board, vehicleId, steps);
+            return true;
+        } catch (InvalidMoveException e) {
+            return false;
+        }
+    }
+
+    private String formatMoveDescription(Vehicle vehicle, int step) {
+        String direction;
+        if (vehicle.getOrientation() == Orientation.HORIZONTAL) {
+            direction = (step > 0) ? "jobbra (+1)" : "balra (-1)";
+        } else {
+            direction = (step > 0) ? "lefelé (+1)" : "felfelé (-1)";
+        }
+        return vehicle.getId() + " (" + direction + ")";
+    }
+
+    /**
+     * Elmozdít egy járművet lépésenként ellenőrizve, hogy ne ugorhasson át más járművet,
+     * és csak a céljármű csúszhasson ki a saját kijáratán.
+     */
+    public Board moveVehicle(Board currentBoard, char vehicleId, int steps) throws InvalidMoveException {
+        if (steps == 0) {
+            throw new InvalidMoveException("A lépésszám nem lehet 0!");
+        }
+
+        Vehicle target = findVehicle(currentBoard, vehicleId);
+        boolean[][] occupiedByOthers = buildOccupiedGrid(currentBoard, vehicleId);
+
+        int direction = Integer.signum(steps);
+        int totalSteps = Math.abs(steps);
+        int currentRow = target.getStartRow();
+        int currentCol = target.getStartCol();
+
+        for (int stepIndex = 1; stepIndex <= totalSteps; stepIndex++) {
+            int nextRow = currentRow + (target.getOrientation() == Orientation.VERTICAL ? direction : 0);
+            int nextCol = currentCol + (target.getOrientation() == Orientation.HORIZONTAL ? direction : 0);
+
+            if (isSlidingOutThroughOwnExit(currentBoard, target, nextRow, nextCol)) {
+                currentRow = nextRow;
+                currentCol = nextCol;
                 break;
             }
-        }
 
-        if (targetVehicle == null) {
-            LOGGER.warn("Sikertelen lépés: Nem található '{}' betűjelű jármű a táblán!", vehicleId);
-            return board;
-        }
-
-        // 2. Kiszámoljuk az új kezdőpozíciót az irány és a lépésszám alapján
-        int newRow = targetVehicle.getStartRow();
-        int newCol = targetVehicle.getStartCol();
-
-        if (targetVehicle.getOrientation() == Orientation.HORIZONTAL) {
-            newCol += steps; // Vízszintes autó esetén az oszlop változik (pl. +1 jobbra, -1 balra)
-        } else {
-            newRow += steps; // Függőleges autó esetén a sor változik (pl. +1 le, -1 fel)
-        }
-
-        // 3. SZABÁLYELLENŐRZÉS A: Nem lóg-e le a pályáról az autó?
-        if (newRow < 0 || newCol < 0) {
-            LOGGER.warn("Szabálytalan lépés: A(z) '{}' jármű lemenne a pályáról a bal/felső szélen!", vehicleId);
-            return board;
-        }
-
-        if (targetVehicle.getOrientation() == Orientation.HORIZONTAL) {
-            if (newCol + targetVehicle.getLength() > board.getCols()) {
-                LOGGER.warn("Szabálytalan lépés: A(z) '{}' jármű lemenne a pályáról a jobb szélen!", vehicleId);
-                return board;
+            if (isOutOfBounds(currentBoard, target, nextRow, nextCol)) {
+                throw new InvalidMoveException("A(z) " + vehicleId + " jármű nem hagyhatja el a pályát itt!");
             }
-        } else {
-            if (newRow + targetVehicle.getLength() > board.getRows()) {
-                LOGGER.warn("Szabálytalan lépés: A(z) '{}' jármű lemenne a pályáról az alsó szélen!", vehicleId);
-                return board;
+
+            if (hasCollision(occupiedByOthers, target, nextRow, nextCol)) {
+                throw new InvalidMoveException("Ütközés vagy átugrás! A(z) " + vehicleId + " útja el van állva.");
             }
+
+            currentRow = nextRow;
+            currentCol = nextCol;
         }
 
-        // 4. Gyártunk egy ideiglenes új jármű objektumot a friss koordinátákkal
-        Vehicle movedVehicle = new Vehicle(
-                targetVehicle.getId(),
-                newRow,
-                newCol,
-                targetVehicle.getLength(),
-                targetVehicle.getOrientation()
-        );
-
-        // 5. SZABÁLYELLENŐRZÉS B: Nem ütközik-e egy másik autónak?
-        // Ehhez létrehozunk egy új járműlistát, amiben a régit kicseréljük az új elmozdítottra
         List<Vehicle> updatedVehicles = new ArrayList<>();
-        for (Vehicle v : board.getVehicles()) {
+        for (Vehicle v : currentBoard.getVehicles()) {
             if (v.getId() == vehicleId) {
-                updatedVehicles.add(movedVehicle);
+                updatedVehicles.add(new Vehicle(v.getId(), currentRow, currentCol, v.getLength(), v.getOrientation()));
             } else {
                 updatedVehicles.add(v);
             }
         }
 
-        // Leellenőrizzük az ütközést egy segédfüggvénnyel (amit lentebb megírunk)
-        if (hasCollision(updatedVehicles, board.getRows(), board.getCols())) {
-            LOGGER.warn("Szabálytalan lépés: A(z) '{}' jármű ütközne egy másik járművel!", vehicleId);
-            return board; // Ha ütközés van, visszadobjuk a régi, változatlan táblát
-        }
-
-        LOGGER.info("Sikeres lépés: '{}' jármű elmozdítva ennyi mezővel: {}", vehicleId, steps);
-
-        // 6. Ha minden szabályos volt, visszatérünk egy VADIÚJ Board objektummal, ami már az új listát használja
-        return new Board(board.getRows(), board.getCols(), updatedVehicles, board.getHumanExitRow(), board.getExitRow());
+        return new Board(currentBoard.getRows(), currentBoard.getCols(), updatedVehicles,
+                currentBoard.getHumanExitRow(), currentBoard.getAiExitRow());
     }
 
     /**
-     * Segédfüggvény, ami ellenőrzi, hogy a listában lévő autók átfedik-e (ütköznek-e) egymást.
+     * Ellenőrzi, hogy egy céljármű ('A' vagy 'Z') épp a saját kijáratán csúszik-e ki a tábláról.
      */
-    private boolean hasCollision(List<Vehicle> vehicles, int rows, int cols) {
-        // Gyártunk egy üres rácsot a háttérben
-        boolean[][] occupied = new boolean[rows][cols];
+    public boolean hasVehicleExited(Board board, char vehicleId) {
+        for (Vehicle v : board.getVehicles()) {
+            if (v.getId() == vehicleId) {
+                int exitRow = (vehicleId == 'A') ? board.getHumanExitRow() : board.getAiExitRow();
+                return v.getStartRow() == exitRow && (v.getStartCol() + v.getLength()) > board.getCols();
+            }
+        }
+        return false;
+    }
 
-        for (Vehicle v : vehicles) {
-            int r = v.getStartRow();
-            int c = v.getStartCol();
+    private boolean isSlidingOutThroughOwnExit(Board board, Vehicle target, int nextRow, int nextCol) {
+        if (target.getOrientation() != Orientation.HORIZONTAL || nextCol <= target.getStartCol()) {
+            return false;
+        }
+        if (target.getId() == 'A' && nextRow == board.getHumanExitRow()) {
+            return (nextCol + target.getLength()) > board.getCols();
+        }
+        if (target.getId() == 'Z' && nextRow == board.getAiExitRow()) {
+            return (nextCol + target.getLength()) > board.getCols();
+        }
+        return false;
+    }
 
+    private Vehicle findVehicle(Board board, char vehicleId) throws InvalidMoveException {
+        for (Vehicle v : board.getVehicles()) {
+            if (v.getId() == vehicleId) {
+                return v;
+            }
+        }
+        throw new InvalidMoveException("Nem található '" + vehicleId + "' azonosítójú jármű!");
+    }
+
+    private boolean[][] buildOccupiedGrid(Board board, char ignoredVehicleId) {
+        boolean[][] occupied = new boolean[board.getRows()][board.getCols()];
+        for (Vehicle v : board.getVehicles()) {
+            if (v.getId() == ignoredVehicleId) {
+                continue;
+            }
             for (int i = 0; i < v.getLength(); i++) {
-                // Ha ez a hely már foglalt egy másik autó által, akkor ütközést találtunk!
-                if (occupied[r][c]) {
-                    return true;
-                }
-                occupied[r][c] = true;
-
-                // Léptetjük a koordinátát az autó iránya szerint a vizsgálathoz
-                if (v.getOrientation() == Orientation.HORIZONTAL) {
-                    c++;
-                } else {
-                    r++;
+                int r = v.getStartRow() + (v.getOrientation() == Orientation.VERTICAL ? i : 0);
+                int c = v.getStartCol() + (v.getOrientation() == Orientation.HORIZONTAL ? i : 0);
+                if (r >= 0 && r < board.getRows() && c >= 0 && c < board.getCols()) {
+                    occupied[r][c] = true;
                 }
             }
         }
-        return false; // Nincs ütközés
+        return occupied;
+    }
+
+    private boolean isOutOfBounds(Board board, Vehicle target, int row, int col) {
+        if (row < 0 || col < 0) {
+            return true;
+        }
+        if (target.getOrientation() == Orientation.HORIZONTAL) {
+            return col + target.getLength() > board.getCols();
+        } else {
+            return row + target.getLength() > board.getRows();
+        }
+    }
+
+    private boolean hasCollision(boolean[][] occupied, Vehicle target, int row, int col) {
+        for (int i = 0; i < target.getLength(); i++) {
+            int r = row + (target.getOrientation() == Orientation.VERTICAL ? i : 0);
+            int c = col + (target.getOrientation() == Orientation.HORIZONTAL ? i : 0);
+            if (occupied[r][c]) {
+                return true;
+            }
+        }
+        return false;
     }
 }
-

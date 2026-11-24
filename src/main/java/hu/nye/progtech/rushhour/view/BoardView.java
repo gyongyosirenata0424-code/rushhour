@@ -1,71 +1,68 @@
 package hu.nye.progtech.rushhour.view;
 
 import hu.nye.progtech.rushhour.model.Board;
+import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
 
 /**
- * A játéktábla parancssoros (CLI) kirajzolásáért felelős osztály.
- * Ez valósítja meg az MVC minta View (Nézet) részét.
+ * A játéktábla konzolos megjelenítéséért felelős osztály (a..f oszlopok, 1..N sorok).
  */
 public class BoardView {
 
-    /**
-     * Kirajzolja a kapott táblát és a rajta lévő járműveket a konzolra.
-     * @param board A játéktábla objektum, amit meg akarunk jeleníteni.
-     */
     public void printBoard(Board board) {
         int rows = board.getRows();
         int cols = board.getCols();
-
-        // 1. LÉPÉS: Létrehozunk a memóriában egy üres,NxM-es karakterrácsot (kétdimenziós tömböt)
         char[][] grid = new char[rows][cols];
 
-        // 2. LÉPÉS: Feltöltjük a rácsot alapértelmezetten pontokkal ('.'), ami az üres mezőket jelzi
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                grid[i][j] = '.';
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                grid[r][c] = '.';
             }
         }
 
-        // 3. LÉPÉS: Ráhelyezzük az autókat a rácsra a koordinátáik és hosszuk alapján
-        for (Vehicle vehicle : board.getVehicles()) {
-            int r = vehicle.getStartRow();
-            int c = vehicle.getStartCol();
-
-            for (int i = 0; i < vehicle.getLength(); i++) {
-                // Ellenőrizzük, hogy az autó sarka nem lóg-e le véletlenül a pályáról
+        for (Vehicle v : board.getVehicles()) {
+            for (int i = 0; i < v.getLength(); i++) {
+                int r = v.getStartRow() + (v.getOrientation() == Orientation.VERTICAL ? i : 0);
+                int c = v.getStartCol() + (v.getOrientation() == Orientation.HORIZONTAL ? i : 0);
                 if (r >= 0 && r < rows && c >= 0 && c < cols) {
-                    grid[r][c] = vehicle.getId(); // Beírjuk az autó betűjelét (pl. 'A' vagy 'X')
-                }
-
-                // Ha az autó vízszintes, a következő darabkája eggyel jobbra (oszlop+) van
-                if (vehicle.getOrientation() == hu.nye.progtech.rushhour.model.Orientation.HORIZONTAL) {
-                    c++;
-                } else {
-                    // Ha függőleges, akkor eggyel lejjebb (sor+) van
-                    r++;
+                    grid[r][c] = v.getId();
                 }
             }
         }
 
-        // 4. LÉPÉS: Ténylegesen kirajzoljuk a rácsot a képernyőre, szép kerettel együtt
-        System.out.println("--- RUSH HOUR PÁLYA ---");
-        for (int i = 0; i < rows; i++) {
-            // Sor eleji keret
-            System.out.print("| ");
-            for (int j = 0; j < cols; j++) {
-                System.out.print(grid[i][j] + " ");
+        System.out.print("\n    ");
+        for (int c = 0; c < cols; c++) {
+            char colLabel = (char) ('a' + c);
+            System.out.print(colLabel + " ");
+        }
+        System.out.println();
+
+        System.out.print("  +-");
+        for (int c = 0; c < cols; c++) {
+            System.out.print("--");
+        }
+        System.out.println("+");
+
+        for (int r = 0; r < rows; r++) {
+            System.out.printf("%2d| ", r + 1);
+            for (int c = 0; c < cols; c++) {
+                System.out.print(grid[r][c] + " ");
             }
-            // Sor végi keret, plusz jelezzük, ha az adott sorban kijárat van
-            System.out.print("|");
-            if (i == board.getHumanExitRow()) {
-                System.out.print(" -> HUMÁN KIJÁRAT ('A')");
-            }
-            if (i == board.getExitRow()) {
-                System.out.print(" <- GÉPI KIJÁRAT ('B')");
+
+            if (r == board.getHumanExitRow()) {
+                System.out.print("  ==> KIJÁRAT: TE ('A')");
+            } else if (r == board.getAiExitRow()) {
+                System.out.print("  ==> KIJÁRAT: AI ('Z')");
+            } else {
+                System.out.print("|");
             }
             System.out.println();
         }
-        System.out.println("-----------------------");
+
+        System.out.print("  +-");
+        for (int c = 0; c < cols; c++) {
+            System.out.print("--");
+        }
+        System.out.println("+\n");
     }
 }

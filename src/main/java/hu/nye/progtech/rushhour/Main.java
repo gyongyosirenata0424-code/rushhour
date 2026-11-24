@@ -1,0 +1,12 @@
+package hu.nye.progtech.rushhour;
+
+/**
+ * Az alkalmazás belépési pontja.
+ */
+public class Main {
+
+    public static void main(String[] args) {
+        Game game = new Game();
+        game.start();
+    }
+}
