@@ -1,11 +1,10 @@
-package hu.nye.progtech.rushhour;
+package hu.nye.progtech.rushhour.service;
 
 import java.nio.file.Path;
 import java.util.Map;
 
 import hu.nye.progtech.rushhour.repository.HighScoreRepository;
 import hu.nye.progtech.rushhour.repository.JdbcHighScoreRepository;
-import hu.nye.progtech.rushhour.service.HighScoreService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;

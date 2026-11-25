@@ -1,4 +1,4 @@
-package hu.nye.progtech.rushhour;
+package hu.nye.progtech.rushhour.observer;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -9,7 +9,6 @@ import hu.nye.progtech.rushhour.controller.GameController;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
-import hu.nye.progtech.rushhour.observer.HistoryLoggerObserver;
 import hu.nye.progtech.rushhour.repository.HighScoreRepository;
 import hu.nye.progtech.rushhour.service.BoardFileReader;
 import hu.nye.progtech.rushhour.service.CommandHistorySingleton;

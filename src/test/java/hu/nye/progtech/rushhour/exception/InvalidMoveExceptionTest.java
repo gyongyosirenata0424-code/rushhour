@@ -1,7 +1,6 @@
-package hu.nye.progtech.rushhour;
+package hu.nye.progtech.rushhour.exception;
 
 import org.junit.jupiter.api.Test;
-import hu.nye.progtech.rushhour.exception.InvalidMoveException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

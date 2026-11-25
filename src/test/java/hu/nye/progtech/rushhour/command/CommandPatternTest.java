@@ -1,13 +1,8 @@
-package hu.nye.progtech.rushhour;
+package hu.nye.progtech.rushhour.command;
 
 import java.nio.file.Path;
 import java.util.List;
 
-import hu.nye.progtech.rushhour.command.Command;
-import hu.nye.progtech.rushhour.command.ExitCommand;
-import hu.nye.progtech.rushhour.command.HistoryCommand;
-import hu.nye.progtech.rushhour.command.SaveCommand;
-import hu.nye.progtech.rushhour.command.ScoresCommand;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;

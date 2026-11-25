@@ -1,4 +1,4 @@
-package hu.nye.progtech.rushhour;
+package hu.nye.progtech.rushhour.player;
 
 import java.util.List;
 import java.util.Random;
@@ -7,7 +7,6 @@ import hu.nye.progtech.rushhour.exception.InvalidMoveException;
 import hu.nye.progtech.rushhour.model.Board;
 import hu.nye.progtech.rushhour.model.Orientation;
 import hu.nye.progtech.rushhour.model.Vehicle;
-import hu.nye.progtech.rushhour.player.AiPlayer;
 import hu.nye.progtech.rushhour.service.MoveService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
